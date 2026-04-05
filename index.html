@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Animated Glassmorphism PDF Editor</title>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/pdf-lib/dist/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --success: #10b981;
+            --danger: #ef4444;
+            /* Colors for the animated gradient */
+            --gradient-1: #e0e7ff; /* light indigo */
+            --gradient-2: hsl(323, 73%, 80%); /* light emerald */
+            --gradient-3: hsl(187, 52%, 60%); /* light orange */
+            --text-main: #1e293b;
+            --text-sub: #475569;
+        }
+
+        /* --- ANIMATED BACKGROUND --- */
+        body { 
+            font-family: 'Montserrat', sans-serif; 
+            color: var(--text-main);
+            margin: 0;
+            padding: 40px 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            
+            /* Gradient settings */
+            background: linear-gradient(-45deg, var(--gradient-1), var(--gradient-2), var(--gradient-3), var(--gradient-1));
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        h1 { font-weight: 800; font-size: 2.8rem; margin-bottom: 10px; letter-spacing: -1.5px; color: #1e1b4b; }
+        .header p { color: #4338ca; font-weight: 600; }
+        
+        /* --- GLASSMORPHISM CONTROLS --- */
+        .controls { 
+            background: rgba(255, 255, 255, 0.3); /* Translucent white */
+            backdrop-filter: blur(12px); /* Blur effect */
+            -webkit-backdrop-filter: blur(12px);
+            padding: 30px; 
+            border-radius: 20px; 
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1); /* Soft shadow */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.4); /* Very subtle white border */
+        }
+
+        .btn { 
+            cursor: pointer; 
+            padding: 12px 24px; 
+            border: none; 
+            border-radius: 10px; 
+            font-family: 'Montserrat', sans-serif;
+            font-weight: 700;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .btn-upload { background: var(--primary); color: white; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.3); }
+        .btn-upload:hover { background: var(--primary-hover); transform: translateY(-2px); }
+
+        .btn-export { background: var(--success); color: white; width: 100%; max-width: 400px; font-size: 1.1rem; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3); }
+        .btn-export:hover { transform: scale(1.03); opacity: 0.95; }
+        .btn-export:disabled { background: #94a3b8; cursor: not-allowed; transform: none; box-shadow: none; opacity: 0.7; }
+
+        /* Action buttons use glass effect too */
+        .btn-action { background: rgba(255, 255, 255, 0.5); color: var(--text-main); padding: 10px; flex: 1; border: 1px solid rgba(255,255,255,0.3); }
+        .btn-action:hover { background: rgba(255, 255, 255, 0.8); }
+        
+        .btn-danger { color: var(--danger); background: rgba(239, 68, 68, 0.1); }
+        .btn-danger:hover { background: rgba(239, 68, 68, 0.2); }
+
+        .grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); 
+            gap: 30px; 
+            margin-top: 40px;
+            align-items: start;
+        }
+
+        /* --- GLASSMORPHISM CARDS --- */
+        .page-card { 
+            background: rgba(255, 255, 255, 0.25); /* Translucent */
+            backdrop-filter: blur(10px); /* Core Blur Effect */
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3); /* Subtle white shine edge */
+            padding: 20px; 
+            border-radius: 16px; 
+            text-align: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            height: auto;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 4px 24px 0 rgba(0, 0, 0, 0.05);
+        }
+        
+        .page-card:hover { 
+            transform: translateY(-8px) scale(1.02); 
+            box-shadow: 0 12px 40px 0 rgba(31, 38, 135, 0.15);
+            background: rgba(255, 255, 255, 0.35); /* Get slightly more opaque on hover */
+        }
+
+        .thumb-container {
+            aspect-ratio: 1 / 1.41;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            border-radius: 8px;
+            background: rgba(241, 245, 249, 0.5); /* translucent background for loader */
+            margin-bottom: 18px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .page-card img { 
+            max-width: 100%; 
+            max-height: 100%; 
+            transition: transform 0.3s ease;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            border-radius: 4px;
+        }
+
+        .card-controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+
+        /* Glass effect for the info group too */
+        .info-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            padding: 15px;
+            background: rgba(248, 250, 252, 0.4); 
+            backdrop-filter: blur(4px);
+            border-radius: 10px;
+            margin-top: auto; 
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .page-label {
+            font-size: 0.75rem;
+            font-weight: 800;
+            color: #3730a3; /* darker indigo */
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+        }
+
+        .filename-label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-main);
+            line-height: 1.5;
+            white-space: normal;      
+            word-break: break-all;    
+            overflow-wrap: anywhere;  
+            display: block;
+            text-align: center;
+        }
+
+        #status { font-size: 0.95rem; font-weight: 700; color: #4338ca; }
+        input[type="file"] { display: none; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header">
+            <h1>PDF Studio Lite</h1>
+            <p>Your local, secure, glassmorphism PDF editor.</p>
+        </div>
+
+        <div class="controls">
+            <label class="btn btn-upload">
+                <span>+ Upload PDF Files</span>
+                <input type="file" id="fileInput" multiple accept=".pdf">
+            </label>
+            <p id="status">No files uploaded</p>
+            <button class="btn btn-export" id="exportBtn" disabled>Download Merged PDF</button>
+            <div>Made with ❤️ by <a href="https://github.com/YashChopade11" target="_blank"
+            style="color: var(--primary); font-weight: 600;"><span class="text-yash">Yash Chopade</span></a></div>
+        </div>
+
+        <div id="pageGrid" class="grid"></div>
+    </div>
+
+    <script>
+        // --- (JavaScript logic remains identical to previous functional version) ---
+        const { PDFDocument, degrees } = PDFLib;
+        const pdfjsLib = window['pdfjs-dist/build/pdf'];
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        let pagesData = [];
+document.getElementById('fileInput').addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    
+    document.getElementById('status').innerText = "Processing...";
+
+    for (const file of files) {
+        // 1. Read the file into a temporary buffer
+        const tempBuffer = await file.arrayBuffer();
+
+        // 2. CREATE A CLONE
+        // .slice(0) creates a new, independent copy of the memory 
+        // that won't be detached by the preview generator.
+        const persistentBuffer = tempBuffer.slice(0);
+
+        // 3. Use the tempBuffer for the preview (PDF.js)
+        const pdf = await pdfjsLib.getDocument({ data: tempBuffer }).promise;
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const viewport = page.getViewport({ scale: 0.6 });
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+            canvas.height = viewport.height;
+            canvas.width = viewport.width;
+
+            await page.render({ canvasContext: context, viewport }).promise;
+
+            pagesData.push({
+                id: Math.random().toString(36).substr(2, 9),
+                fileName: file.name,
+                // 4. Store the persistentBuffer for the Export phase
+                buffer: persistentBuffer, 
+                index: i - 1,
+                rotation: 0,
+                thumb: canvas.toDataURL()
+            });
+        }
+    }
+    renderGrid();
+    document.getElementById('status').innerText = "Ready to export!";
+    document.getElementById('exportBtn').disabled = false;
+});
+        // document.getElementById('fileInput').addEventListener('change', async (e) => {
+        //     const files = Array.from(e.target.files);
+        //     if (files.length === 0) return;
+            
+        //     document.getElementById('status').innerText = "Generating previews...";
+
+        //     for (const file of files) {
+        //         const arrayBuffer = await file.arrayBuffer();
+        //         const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+
+        //         for (let i = 1; i <= pdf.numPages; i++) {
+        //             const page = await pdf.getPage(i);
+        //             // Higher scale for bigger/sharper previews
+        //             const viewport = page.getViewport({ scale: 0.6 }); 
+        //             const canvas = document.createElement('canvas');
+        //             const context = canvas.getContext('2d');
+        //             canvas.height = viewport.height;
+        //             canvas.width = viewport.width;
+
+        //             await page.render({ canvasContext: context, viewport }).promise;
+
+        //             pagesData.push({
+        //                 id: Math.random().toString(36).substr(2, 9),
+        //                 fileName: file.name,
+        //                 buffer: arrayBuffer,
+        //                 index: i - 1,
+        //                 rotation: 0,
+        //                 thumb: canvas.toDataURL()
+        //             });
+        //         }
+        //     }
+        //     renderGrid();
+        //     document.getElementById('status').innerText = `${pagesData.length} pages ready`;
+        //     document.getElementById('exportBtn').disabled = false;
+        // });
+
+        function renderGrid() {
+            const grid = document.getElementById('pageGrid');
+            grid.innerHTML = '';
+
+            pagesData.forEach((page, i) => {
+                const card = document.createElement('div');
+                card.className = 'page-card';
+                card.innerHTML = `
+                    <div class="thumb-container">
+                        <img src="${page.thumb}" style="transform: rotate(${page.rotation}deg)">
+                    </div>
+                    <div class="card-controls">
+                        <button class="btn btn-action" onclick="movePage(${i}, -1)" title="Move Left">←</button>
+                        <button class="btn btn-action" onclick="rotatePage(${i})" title="Rotate 90°">↻</button>
+                        <button class="btn btn-action btn-danger" onclick="deletePage(${i})" title="Delete Page">✕</button>
+                        <button class="btn btn-action" onclick="movePage(${i}, 1)" title="Move Right">→</button>
+                    </div>
+                    <div class="info-group">
+                        <span class="page-label">Page ${i + 1}</span>
+                        <div class="filename-label">${page.fileName}</div>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        window.rotatePage = (i) => {
+            pagesData[i].rotation = (pagesData[i].rotation + 90) % 360;
+            renderGrid();
+        };
+
+        window.deletePage = (i) => {
+            pagesData.splice(i, 1);
+            if (pagesData.length === 0) document.getElementById('exportBtn').disabled = true;
+            renderGrid();
+        };
+
+        window.movePage = (index, step) => {
+            const newIndex = index + step;
+            if (newIndex >= 0 && newIndex < pagesData.length) {
+                const temp = pagesData[index];
+                pagesData[index] = pagesData[newIndex];
+                pagesData[newIndex] = temp;
+                renderGrid();
+            }
+        };
+document.getElementById('exportBtn').addEventListener('click', async () => {
+            const mergedPdf = await PDFDocument.create();
+            const status = document.getElementById('status');
+            status.innerText = "Compiling PDF...";
+
+            try {
+                for (const item of pagesData) {
+                    // Load the buffer (which is now safely cloned)
+                    const srcDoc = await PDFDocument.load(item.buffer);
+                    const [copiedPage] = await mergedPdf.copyPages(srcDoc, [item.index]);
+                    copiedPage.setRotation(degrees(item.rotation));
+                    mergedPdf.addPage(copiedPage);
+                }
+
+                const pdfBytes = await mergedPdf.save();
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = "merged_document.pdf";
+                link.click();
+                status.innerText = "Download complete!";
+            } catch (err) {
+                console.error(err);
+                status.innerText = "Error: " + err.message;
+            }
+        });
+        // document.getElementById('exportBtn').addEventListener('click', async () => {
+        //     const mergedPdf = await PDFDocument.create();
+        //     const exportBtn = document.getElementById('exportBtn');
+        //     const status = document.getElementById('status');
+            
+        //     status.innerText = "Compiling PDF...";
+        //     exportBtn.disabled = true;
+        //     exportBtn.innerText = "Processing...";
+
+        //     try {
+        //         for (const item of pagesData) {
+        //             const srcDoc = await PDFDocument.load(item.buffer);
+        //             const [copiedPage] = await mergedPdf.copyPages(srcDoc, [item.index]);
+        //             copiedPage.setRotation(degrees(item.rotation));
+        //             mergedPdf.addPage(copiedPage);
+        //         }
+
+        //         const pdfBytes = await mergedPdf.save();
+        //         const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+        //         const link = document.createElement('a');
+        //         link.href = URL.createObjectURL(blob);
+        //         link.download = "merged_document.pdf";
+        //         link.click();
+        //         status.innerText = "Download complete!";
+        //     } catch (err) {
+        //         console.error(err);
+        //         status.innerText = "Error generating PDF.";
+        //     } finally {
+        //         exportBtn.disabled = false;
+        //         exportBtn.innerText = "Download Merged PDF";
+        //     }
+        // });
+    </script>
+</body>
+</html>
